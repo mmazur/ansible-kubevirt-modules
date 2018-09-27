@@ -89,10 +89,18 @@ result:
 
 import copy
 import math
+import sys
 import time
 
 from ansible.module_utils.k8s.common import AUTH_ARG_SPEC, COMMON_ARG_SPEC
 from ansible.module_utils.k8s.raw import KubernetesRawModule
+
+
+if hasattr(sys, '_called_from_test'):
+    sys.path.append('lib/ansible/module_utils/kubevirt')
+    from common import KubeVirtStreamHandler
+else:
+    from ansible.module_utils.kubevirt.common import KubeVirtStreamHandler
 
 try:
     from openshift import watch
@@ -110,7 +118,7 @@ VMIR_ARG_SPEC = {
     'wait_timeout': {'type': 'int', 'default': 20}
 }
 
-class KubeVirtScaleVMIRS(KubernetesRawModule):
+class KubeVirtScaleVMIRS(KubernetesRawModule, KubeVirtStreamHandler):
     def __init__(self, *args, **kwargs):
         super(KubeVirtScaleVMIRS, self).__init__(*args, **kwargs)
 
@@ -196,18 +204,6 @@ class KubeVirtScaleVMIRS(KubernetesRawModule):
             return_obj = self._wait_for_response(resource, name, namespace)
 
         return return_obj
-
-    def _create_stream(self, resource, namespace, wait_time):
-        """ Create a stream of events for the object """
-        w = None
-        stream = None
-        try:
-            w = watch.Watch()
-            w._api_client = self.client.client
-            stream = w.stream(resource.get, serialize=False, namespace=namespace, timeout_seconds=wait_time)
-        except KubernetesException as exc:
-            self.fail_json(msg='Failed to initialize watch: {0}'.format(exc.message))
-        return w, stream
 
     def _read_stream(self, resource, watcher, stream, name, replicas):
         """ Wait for ready_replicas to equal the requested number of replicas. """

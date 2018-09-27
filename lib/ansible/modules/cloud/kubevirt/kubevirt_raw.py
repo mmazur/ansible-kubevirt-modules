@@ -147,6 +147,8 @@ result:
 
 from ansible.module_utils.k8s.raw import KubernetesRawModule
 
+from ansible.module_utils.kubevirt.common import KubeVirtStreamHandler
+
 RAW_ARG_SPEC = {
     'wait': {'type': 'bool', 'default': True},
     'wait_timeout': {'type': 'int', 'default': 20}
@@ -192,19 +194,6 @@ class KubeVirtVM(KubernetesRawModule):
                 'results': results
             }
         })
-
-    # TODO: Candidate to be common method:
-    def _create_stream(self, resource, namespace, wait_time):
-        """ Create a stream of events for the object """
-        w = None
-        stream = None
-        try:
-            w = watch.Watch()
-            w._api_client = self.client.client
-            stream = w.stream(resource.get, serialize=False, namespace=namespace, timeout_seconds=wait_time)
-        except KubernetesException as exc:
-            self.fail_json(msg='Failed to initialize watch: {0}'.format(exc.message))
-        return w, stream
 
     def _read_stream(self, resource, watcher, stream, name, replicas):
         """ Wait for ready_replicas to equal the requested number of replicas. """
