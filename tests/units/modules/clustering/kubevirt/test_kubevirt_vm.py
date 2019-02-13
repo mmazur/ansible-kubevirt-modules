@@ -2,7 +2,7 @@ import json
 import pytest
 import sys
 
-from openshift.dynamic import Resource
+from openshift.dynamic import Resource, ResourceInstance
 from openshift.helper.exceptions import KubernetesException
 
 from ansible.compat.tests.mock import patch, MagicMock
@@ -13,11 +13,28 @@ from utils import set_module_args, AnsibleFailJson, AnsibleExitJson, exit_json, 
 
 # FIXME: paths/imports should be fixed before submitting a PR to Ansible
 sys.path.append('lib/ansible/modules/clustering/kubevirt')
+sys.path.append('lib/ansible/module_utils')
 
 import kubevirt_vm as mymodule
+from kubevirt import MAX_SUPPORTED_API_VERSION
 
 KIND = 'VirtulMachine'
 
+@pytest.mark.parametrize("_apiver", ( MAX_SUPPORTED_API_VERSION, ))
+def test_api_version_detection(_apiver):
+    Resource.search = MagicMock()
+    res_inst = ResourceInstance('', dict(api_ver=_apiver))
+    Resource.search.return_value = [res_inst]
+
+    # check
+    res = mymodule.KubeVirtVM.find_supported_resource(kind="doesn't matter")
+    assert res
+
+    
+#    resource_args = dict( kind=kind, **RESOURCE_DEFAULT_ARGS )
+#    mymodule.KubeVirtVMIRS.find_supported_resource.return_value = Resource(**resource_args)
+#    res_inst = ResourceInstance('', dict(metadata = {'name': _name}, spec = {'replicas': 2}))
+#    Resource.search.return_value = [res_inst]
 
 class TestKubeVirtVmModule(object):
 
@@ -118,3 +135,5 @@ class TestKubeVirtVmModule(object):
         dict2 = {'metadata': {'labels': {'label2': 'value'}}}
         dict3 = json.dumps({'metadata': {'labels': {'label1': 'value', 'label2': 'value', 'label3': 'value'}}}, sort_keys=True)
         assert dict3 == json.dumps(dict(mymodule.KubeVirtVM.merge_dicts(dict1, dict2)))
+
+

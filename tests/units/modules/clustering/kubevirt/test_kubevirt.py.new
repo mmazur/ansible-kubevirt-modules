@@ -1,0 +1,46 @@
+import json
+import pytest
+
+from ansible.compat.tests.mock import patch, MagicMock
+#from units.compat.mock import patch, MagicMock
+
+from ansible.module_utils.k8s.raw import KubernetesRawModule
+
+openshiftdynamic = pytest.importorskip("openshift.dynamic", minversion="0.6.2")
+
+from utils import AnsibleFailJson, AnsibleExitJson, exit_json, fail_json
+
+# FIXME: paths/imports should be fixed before submitting a PR to Ansible
+import sys
+sys.path.append('lib/ansible/module_utils')
+
+import kubevirt as mymodule
+
+
+from kubevirt import MAX_SUPPORTED_API_VERSION, KubeVirtRawModule
+
+
+@pytest.fixture(autouse=True)
+def setup_mixtures(self, monkeypatch):
+    monkeypatch.setattr(
+        KubernetesRawModule, "exit_json", exit_json)
+    monkeypatch.setattr(
+        KubernetesRawModule, "fail_json", fail_json)
+
+@pytest.mark.parametrize("_apiver", [
+                                        (),
+                                        (MAX_SUPPORTED_API_VERSION, ),
+                                        ('v0',),
+                                        ('v0', MAX_SUPPORTED_API_VERSION, 'v99999'),
+                                    ])
+def test_api_version_detection(_apiver):
+    Resource.search = MagicMock()
+    res_inst = ResourceInstance('', dict(api_ver=_apiver))
+    Resource.search.return_value = [res_inst]
+    K8sAnsibleMixin.get_api_client = MagicMock()
+    K8sAnsibleMixin.get_api_client.return_value = None
+
+    # check
+    res = mymodule.KubeVirtVM.find_supported_resource(kind="doesn't matter")
+    assert res
+
